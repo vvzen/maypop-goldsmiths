@@ -34,7 +34,6 @@ class ofApp : public ofBaseApp{
 		// ARDUINO
 		ofArduino arduino;
 		bool joystick_pressed, zoom_in_pressed, zoom_out_pressed;
-		bool skip_joystick_event;
     	string analog_status;
 		ofVec2f joystick;
 
@@ -61,7 +60,7 @@ class ofApp : public ofBaseApp{
     	void cam_zoom_out();
 
 		// used to compute the boundary
-		ofVboMesh poly_meshes_centroids; // mesh with the centroids for each polygon
+		ofMesh poly_meshes_centroids; // mesh with the centroids for each polygon
 		ofPoint geoshape_centroid; // overall shape centroid coordinates
 
 		// GEOJSON
@@ -71,8 +70,8 @@ class ofApp : public ofBaseApp{
 		//ofPoint spherical_to_cartesian(float lon, float lat, float radius);
 		ofxJSONElement geojson_map;
 
-		vector <ofVboMesh> poly_meshes; // stores the geojson shapes
-		vector <vv_geojson::city> cities; // stores the extruded names of the cities
+		vector <ofMesh> poly_meshes; // stores the geojson shapes
+		vector <vv_geojson::City> cities; // stores the extruded names of the cities
 
 		ofTrueTypeFont font, legend_font;
 

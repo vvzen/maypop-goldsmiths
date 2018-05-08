@@ -7,18 +7,18 @@ using namespace vv_map_projections;
 // @desc:   currently supports the loading of Point, Polygon and MultiPolygon geojson feature types.
 //          Creates the wireframe of the Polygon/Multipolygon features using a vector of ofVboMeshes,
 //          and creates all the meshes for the name of each city (contained in ["features"][i]["properties"]["NAME_EN"] ).
-//          Since I'm not going to change its geometry once created, I choose an ofVboMesh instead of a plain ofMesh.
+//          Since I'm not going to change its geometry once created, I choose an ofMesh instead of a plain ofMesh.
 // @args:   path: the path to the geojson file
 //          font: the font used for the text extrusion
 //          poly_meshes: a vector of ofVboMeshes that will be filled with polygonal contours
-//          cities_meshes: a vector of city structs which host the meshes for the extruded cities names
+//          cities_meshes: a vector of City structs which host the meshes for the extruded cities names
 //          scale: used to uniformly change the size of the mesh
 // @return: the centroid of the mesh created from the geojson
 //--------------------------------------------------------------
-ofPoint vv_geojson::create_geojson_map(std::string path, ofTrueTypeFont & font, vector<ofVboMesh> & poly_meshes, vector<city> & cities_meshes, float scale){
+ofPoint vv_geojson::create_geojson_map(std::string path, ofTrueTypeFont & font, vector<ofMesh> & poly_meshes, vector<City> & cities_meshes, float scale){
 
     // std::string path = "world_cities_countries.geojson";
-    ofVboMesh poly_meshes_centroids;
+    ofMesh poly_meshes_centroids;
     ofPoint geoshape_centroid = ofPoint(0, 0, 0);
 
     ofxJSONElement geojson_map;
@@ -61,9 +61,9 @@ ofPoint vv_geojson::create_geojson_map(std::string path, ofTrueTypeFont & font, 
             // excluding some cities for aesthetic reasons
             if (city_name != "#vatican city"){
 
-                vector<ofVboMesh> city_name_meshes = extrude_mesh_from_text(city_name, font, 2, 0.012, true);
+                vector<ofMesh> city_name_meshes = extrude_mesh_from_text(city_name, font, 2, 0.012, true);
                 
-                city current_city;
+                City current_city;
                 current_city.meshes = city_name_meshes;
                 current_city.position = projected;
                 current_city.name = city_name;
@@ -73,8 +73,8 @@ ofPoint vv_geojson::create_geojson_map(std::string path, ofTrueTypeFont & font, 
         }
         else if (type == "Polygon"){
 
-            // we need to start a new ofVboMesh
-            ofVboMesh mesh;
+            // we need to start a new ofMesh
+            ofMesh mesh;
 
             int n_points = coordinates[0].size();
 
@@ -111,7 +111,7 @@ ofPoint vv_geojson::create_geojson_map(std::string path, ofTrueTypeFont & font, 
             
             for (Json::ArrayIndex k = 0; k < n_polygons; ++k){
                 
-                ofVboMesh mesh;
+                ofMesh mesh;
 
                 int n_points = coordinates[k][0].size();
 

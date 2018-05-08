@@ -5,7 +5,7 @@
 void ofApp::setup(){
 
     ofSetVerticalSync(true);
-	ofSetFrameRate(60);
+	ofSetFrameRate(45);
 
     ofHideCursor();
 
@@ -26,7 +26,6 @@ void ofApp::setup(){
     joystick_pressed = false;
     zoom_in_pressed = false;
     zoom_out_pressed = false;
-    skip_joystick_event = true;
     joystick = ofVec2f(0, 0);
 
     // OSC
@@ -104,7 +103,7 @@ void ofApp::update(){
 
     updateArduino();
     
-    if (joystick_pressed && !skip_joystick_event){
+    if (joystick_pressed){
         
         cout << "joystick pressed!" << endl;
 
@@ -138,8 +137,8 @@ void ofApp::update(){
         sand_line.update();
 
         // update the dataviz
-        for (int f = 0; f < fireworks.size(); f++){
-            fireworks.at(f).update();
+        for (Firework firework : fireworks){
+            firework.update();
         }
 
         if (zoom_in_pressed) cam_zoom_in();
@@ -167,11 +166,6 @@ void ofApp::update(){
 
             if (pin_num == 2){
                 joystick_pressed = !value;
-                // we receive 2 events from arduino but we just need 1, so this hack is used to skip 1 pressed event every 2
-                if (value){
-                    skip_joystick_event = !skip_joystick_event;
-                    cout << "skip_joystick_event: " << skip_joystick_event << endl;
-                }
             }
             if (pin_num == 8) zoom_in_pressed = value;
             if (pin_num == 9) zoom_out_pressed = value;
@@ -182,17 +176,20 @@ void ofApp::update(){
             int pin_num = m.getArgAsInt(0);
             float value = m.getArgAsFloat(1);
 
-            //cout << "--------------------" << endl;
-            //cout << "/arduino/analog, " << pin_num << ", " << ofToString(value) << endl;
+            // cout << "--------------------" << endl;
+            // cout << "/arduino/analog, " << pin_num << ", " << ofToString(value) << endl;
 
             float joystick_speed_mult = 0.3538f;
             switch(pin_num){
                 case 0:{
+                    // cout << "analog pin 0!" << endl;
                     joystick.y = ofMap(value, 1023, 0, -cam_move_speed * joystick_speed_mult, cam_move_speed * joystick_speed_mult);
+                    cout << "joystick.y: " << joystick.y << endl;
                     break;
                 }
                 case 1:{
-                    joystick.x = ofMap(value, 1023, 0, -cam_move_speed * joystick_speed_mult, cam_move_speed * joystick_speed_mult);
+                    // cout << "analog pin 1!" << endl;
+                    //joystick.x = ofMap(value, 1023, 0, -cam_move_speed * joystick_speed_mult, cam_move_speed * joystick_speed_mult);
                     break;
                 }
             }
@@ -200,7 +197,7 @@ void ofApp::update(){
             
         }
         // receive twitter stuff
-        else if(m.getAddress() == "/twitter-app"){
+        else if (m.getAddress() == "/twitter-app"){
 
 			current_tweeted_city = "#" + m.getArgAsString(0);
             // if there's no text, we'll have an empty string, otherwise prepend an hashtag
@@ -223,10 +220,10 @@ void ofApp::update(){
             }
             // otherwise we will find them by ourselves by looping through our cities
             else {
-                for (int i = 0; i < cities.size(); i++){
+                for (vv_geojson::City city : cities){
                     
-                    if (cities.at(i).name == current_tweeted_city){
-                        city_pos = cities.at(i).position;
+                    if (city.name == current_tweeted_city){
+                        city_pos = city.position;
                         found = true;
                     }
 
@@ -303,11 +300,12 @@ void ofApp::draw(){
         ofFill();
 
         std::stringstream description;
-        description << "Put on the headphones.\n\n";
-        description << "When you're ready, press the joystick button to start.\n\n";
-        description << "If you want, you'll have the chance to explore the map using the joystick.\n\n";
-        description << "Watch the artwork unfolding and when you're too bored/excited\n\npress the joystick again to save the current image.\n\n";
-        description << "All of the images picked up by the audience will be later displayed on my website.\n\n";
+        description << "Welcome.\n\n";
+        description << "On the right side of the screen you will see a drawing generated\n";
+        description << "from a real time stream of people tweeting stuff about different cities.\n\n";
+        description << "On the left side, you have the chance explore a map of those tweets\n";
+        description << "using the joystick and the buttons.\n\n";
+        description << "When you're ready, press the joystick to start.";
         font.drawString(description.str(), WIDTH/3, HEIGHT/4);
 
         ofPopStyle();
@@ -336,33 +334,37 @@ void ofApp::draw(){
         // move shape to the center of the world
         ofTranslate(-geoshape_centroid);
 
+        
         // draw the vbo meshes for the polygons
         ofSetColor(255, 0, 0);
-        for (int i = 0; i < poly_meshes.size(); i++){
-            poly_meshes.at(i).draw();
+        for (ofMesh polymesh: poly_meshes){
+            polymesh.draw();
         }
 
+        /*
         // draw the text of each city
-        for (int i = 0; i < cities.size(); i++){
+        
+        for (vv_geojson::City city : cities){
             ofPushMatrix();
 
                 // check if the city can actually be seen from the camera
                 // otherwise don't even bother doing all this stuff (this saves a good 20-30fps)
-                ofPoint city_screen_pos = cam.worldToScreen(cities.at(i).position);
+                ofPoint city_screen_pos = cam.worldToScreen(city.position);
                 if (city_screen_pos.x > 0 && city_screen_pos.x < WIDTH/2){
                     if (city_screen_pos.y > 0 && city_screen_pos.y < HEIGHT){
                 
-                        ofTranslate(cities.at(i).position);
+                        ofTranslate(city.position);
                         ofTranslate(0, 0, -0.1f);
                         ofRotateX(-90);
                         // ofScale(0.02, 0.02, 0.02);
-                        for (int m = 0; m < cities.at(i).meshes.size(); m++){
-                            cities.at(i).meshes.at(m).draw();
+                        for (ofMesh citymesh : city.meshes){
+                            citymesh.draw();
                         }
                     }
                 } 
             ofPopMatrix();
         }
+        */
 
         // FIREWORKS
         ofEnablePointSprites();
@@ -381,7 +383,7 @@ void ofApp::draw(){
                     0.23);
             }
             else {
-                // all points drawed after the bind will be displayed
+                // all points drawn after the bind will be displayed
                 // as the texture instead
                 firework_texture.bind();
                 firework->mesh.draw();
@@ -406,9 +408,11 @@ void ofApp::draw(){
         ofFill();
         font.drawString(current_tweeted_city, 20, 30);
         font.drawString(current_tweet_hashtags, WIDTH/8, 30);
+        font.drawString("fps: " + ofToString(ofGetFrameRate()), WIDTH/8, 50);
+        font.drawString("\nPress the joystick to save the current image and exit.", WIDTH - WIDTH/8, HEIGHT-HEIGHT/8);
         // ofDrawBitmapString("fps: " + ofToString(ofGetFrameRate()), 20, 50); // for debugging
         
-        if (joystick_pressed && !skip_joystick_event) ofDrawBitmapString("saving artwork!", 20, 70);
+        if (joystick_pressed) ofDrawBitmapString("saving artwork!", 20, 70);
         
         ofPopStyle();
 
@@ -710,12 +714,12 @@ void ofApp::exit(){
 
     // add the names of the cities on the fbo
     ofSetColor(255, 65);
-    for (int i = 0; i < cities.size(); i++){
+    for (vv_geojson::City city : cities){
 
         ofPoint screen_pos;
-        screen_pos.x = ofMap(cities.at(i).position.x, geoshape_bb.x, geoshape_bb.getWidth(),  0, fbo->getWidth());
-        screen_pos.y = ofMap(cities.at(i).position.y, geoshape_bb.y, geoshape_bb.getHeight(), fbo->getHeight(), 0);
-        legend_font.drawString(cities.at(i).name, screen_pos.x, screen_pos.y);
+        screen_pos.x = ofMap(city.position.x, geoshape_bb.x, geoshape_bb.getWidth(),  0, fbo->getWidth());
+        screen_pos.y = ofMap(city.position.y, geoshape_bb.y, geoshape_bb.getHeight(), fbo->getHeight(), 0);
+        legend_font.drawString(city.name, screen_pos.x, screen_pos.y);
     }
     fbo->end();
 

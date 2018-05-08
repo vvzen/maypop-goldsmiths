@@ -11,7 +11,7 @@
 // @example:
 //
 // void ofApp::setup(){
-       // my_extruded_word is a vector<ofVboMesh>
+       // my_extruded_word is a vector<ofMesh>
 //     my_extruded_word = extrude_mesh_from_text(word, font, extrusion_depth, scale);
 // }
 // 
@@ -24,7 +24,7 @@
 //     ofPopMatrix();
 // }
 //--------------------------------------------------------------
-vector<ofVboMesh> extrude_mesh_from_text(string word, ofTrueTypeFont & font, float extrusion_depth, float scale=1, bool get_front_only=false){
+vector<ofMesh> extrude_mesh_from_text(string word, ofTrueTypeFont & font, float extrusion_depth, float scale=1, bool get_front_only=false){
 
     // replace spaces with underscores
     std::replace(word.begin(), word.end(), ' ', '_');
@@ -33,15 +33,15 @@ vector<ofVboMesh> extrude_mesh_from_text(string word, ofTrueTypeFont & font, flo
     // last argument is the numer of samples
     vector <ofPath> word_paths = get_string_as_sampled_points(font, word, 60);
 
-    vector <ofVboMesh> front_meshes, back_meshes, side_meshes;
+    vector <ofMesh> front_meshes, back_meshes, side_meshes;
 
     // meshes for the sides and the front of the 3d extruded text
-    vector<ofVboMesh> all_meshes; // returned meshese (sides + front + back)
+    vector<ofMesh> all_meshes; // returned meshese (sides + front + back)
 
     // for every character, get its path
     for (int i = 0; i < word_paths.size(); i++){
 
-        ofVboMesh current_char_mesh;
+        ofMesh current_char_mesh;
         
         // 1. create the front mesh using a temporary ofPath and then extract its tessellation
 
@@ -49,7 +49,7 @@ vector<ofVboMesh> extrude_mesh_from_text(string word, ofTrueTypeFont & font, flo
         // (simply a collection of the inner and outer points)
         vector <ofPolyline> char_polylines = word_paths.at(i).getOutline();
 
-        ofVboMesh front; // the final vbos used to store the vertices
+        ofMesh front; // the final vbos used to store the vertices
         ofPath front_path; // a temp path used for computing the tessellation of the letter shape
 
         // now we build an ofPath using the vertices from the character polylines
@@ -73,7 +73,7 @@ vector<ofVboMesh> extrude_mesh_from_text(string word, ofTrueTypeFont & font, flo
         ofVec3f * front_vertices = front.getVerticesPointer();
 
         // compute the front by just offsetting the vertices of the required amount
-        ofVboMesh back = front_path.getTessellation();
+        ofMesh back = front_path.getTessellation();
         ofVec3f * back_vertices = back.getVerticesPointer();
 
         for (int v = 0; v < front.getNumVertices(); v++){
@@ -95,7 +95,7 @@ vector<ofVboMesh> extrude_mesh_from_text(string word, ofTrueTypeFont & font, flo
             for (int j = 0; j < char_polylines.size(); j++){
 
                 // SIDES
-                ofVboMesh side;
+                ofMesh side;
                 vector <ofPoint> points = char_polylines.at(j).getVertices();
                 // vector <ofPoint> points = char_polylines[c];
                 int k = 0;

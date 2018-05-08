@@ -6,12 +6,12 @@
 
 namespace vv_geojson {
 
-    struct city {
+    struct City {
         std::string name;
-        vector <ofVboMesh> meshes;
+        vector <ofMesh> meshes;
         ofPoint position;
     };
 
-    ofPoint create_geojson_map(std::string path, ofTrueTypeFont & font, vector<ofVboMesh> & poly_meshes, vector<city> & cities_meshes,  float scale);
+    ofPoint create_geojson_map(std::string path, ofTrueTypeFont & font, vector<ofMesh> & poly_meshes, vector<City> & cities_meshes,  float scale);
 
 }
