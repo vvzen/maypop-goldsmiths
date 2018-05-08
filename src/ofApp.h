@@ -33,8 +33,8 @@ class ofApp : public ofBaseApp{
 
 		// ARDUINO
 		ofArduino arduino;
-		bool can_setup_arduino; // flag variable for setting up arduino once
 		bool joystick_pressed, zoom_in_pressed, zoom_out_pressed;
+		bool skip_joystick_event;
     	string analog_status;
 		ofVec2f joystick;
 

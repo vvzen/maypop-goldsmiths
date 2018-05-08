@@ -26,15 +26,8 @@ void ofApp::setup(){
     joystick_pressed = false;
     zoom_in_pressed = false;
     zoom_out_pressed = false;
-    arduino.connect("/dev/ttyACM1", 57600);
-    can_setup_arduino = false;
+    skip_joystick_event = true;
     joystick = ofVec2f(0, 0);
-
-    // listen for EInitialized notification. this indicates that
-	// the arduino is ready to receive commands and it is safe to
-	// call setup_arduino()
-	ofAddListener(arduino.EInitialized, this, &ofApp::setupArduino);
-	can_setup_arduino = false;
 
     // OSC
     current_tweeted_city = "";
@@ -111,11 +104,16 @@ void ofApp::update(){
 
     updateArduino();
     
-    if (joystick_pressed) cout << "joystick pressed!" << endl;
+    if (joystick_pressed && !skip_joystick_event){
+        
+        cout << "joystick pressed!" << endl;
 
-    if (joystick_pressed && arduino_digital_events_counter > 2){
+        if (!final_greet){
 
-        if (final_greet){
+            show_intro_screen = false;
+            final_greet = true;
+        }
+        else {
 
             cout << "thank you" << endl;
             ofFbo * fbo = sand_line.get_fbo_pointer();
@@ -130,13 +128,11 @@ void ofApp::update(){
             show_intro_screen = true;
             final_greet = false;
         }
-        else {
-            show_intro_screen = false;
-            final_greet = true;
-        }
+
+        joystick_pressed = false;
     }
 
-    if(!show_intro_screen){
+    if (!show_intro_screen){
 
         // update the artwork
         sand_line.update();
@@ -156,11 +152,55 @@ void ofApp::update(){
 
     
     // check for osc messages
-	while(osc_receiver.hasWaitingMessages()){
+	while (osc_receiver.hasWaitingMessages()){
         ofxOscMessage m;
         osc_receiver.getNextMessage(m);
 
-        if(m.getAddress() == "/twitter-app"){
+        // receive arduino stuff
+        if (m.getAddress() == "/arduino/digital"){
+            
+            int pin_num = m.getArgAsInt(0);
+            int value = m.getArgAsInt32(1);
+
+            // cout << "--------------------" << endl;
+            // cout << "/arduino/digital, " << pin_num << ", " << value << endl;
+
+            if (pin_num == 2){
+                joystick_pressed = !value;
+                // we receive 2 events from arduino but we just need 1, so this hack is used to skip 1 pressed event every 2
+                if (value){
+                    skip_joystick_event = !skip_joystick_event;
+                    cout << "skip_joystick_event: " << skip_joystick_event << endl;
+                }
+            }
+            if (pin_num == 8) zoom_in_pressed = value;
+            if (pin_num == 9) zoom_out_pressed = value;
+
+        }
+        else if (m.getAddress() == "/arduino/analog"){
+            
+            int pin_num = m.getArgAsInt(0);
+            float value = m.getArgAsFloat(1);
+
+            //cout << "--------------------" << endl;
+            //cout << "/arduino/analog, " << pin_num << ", " << ofToString(value) << endl;
+
+            float joystick_speed_mult = 0.3538f;
+            switch(pin_num){
+                case 0:{
+                    joystick.y = ofMap(value, 1023, 0, -cam_move_speed * joystick_speed_mult, cam_move_speed * joystick_speed_mult);
+                    break;
+                }
+                case 1:{
+                    joystick.x = ofMap(value, 1023, 0, -cam_move_speed * joystick_speed_mult, cam_move_speed * joystick_speed_mult);
+                    break;
+                }
+            }
+            analog_status = "joystick x: " + ofToString(joystick.x) + ", y: " + ofToString(joystick.y);
+            
+        }
+        // receive twitter stuff
+        else if(m.getAddress() == "/twitter-app"){
 
 			current_tweeted_city = "#" + m.getArgAsString(0);
             // if there's no text, we'll have an empty string, otherwise prepend an hashtag
@@ -248,9 +288,7 @@ void ofApp::update(){
     }
 
     // update the sound playing system
-	ofSoundUpdate();
-
-    joystick_pressed = false;
+	//ofSoundUpdate();
 }
 
 //--------------------------------------------------------------
@@ -370,7 +408,7 @@ void ofApp::draw(){
         font.drawString(current_tweet_hashtags, WIDTH/8, 30);
         // ofDrawBitmapString("fps: " + ofToString(ofGetFrameRate()), 20, 50); // for debugging
         
-        if (joystick_pressed) ofDrawBitmapString("saving artwork!", 20, 70);
+        if (joystick_pressed && !skip_joystick_event) ofDrawBitmapString("saving artwork!", 20, 70);
         
         ofPopStyle();
 
@@ -583,37 +621,10 @@ void ofApp::keyPressed(int key){
 // ARDUINO METHODS
 //--------------------------------------------------------------
 //--------------------------------------------------------------
-void ofApp::setupArduino(const int & version) {
-	
-	// remove listener because we don't need it anymore
-	ofRemoveListener(arduino.EInitialized, this, &ofApp::setupArduino);
-    
-    // it is now safe to send commands to the Arduino
-    can_setup_arduino = true;
-    
-    // print firmware name and version to the console
-    ofLogNotice() << arduino.getFirmwareName(); 
-    ofLogNotice() << "firmata v" << arduino.getMajorFirmwareVersion() << "." << arduino.getMinorFirmwareVersion();
-
-    // set pin 2 as INPUT_PULLUP
-    arduino.sendDigitalPinMode(2, ARD_INPUT);
-    arduino.sendDigital(2, ARD_HIGH);
-    // pin 8,9 as inputs
-    arduino.sendDigitalPinMode(8, ARD_INPUT);
-    arduino.sendDigitalPinMode(9, ARD_INPUT);
-
-    // set pin A0, A1 to analog input
-    arduino.sendAnalogPinReporting(0, ARD_ANALOG);
-    arduino.sendAnalogPinReporting(1, ARD_ANALOG);
-	
-    // Listen for changes on the digital and analog pins
-    ofAddListener(arduino.EDigitalPinChanged, this, &ofApp::digitalPinChanged);
-    ofAddListener(arduino.EAnalogPinChanged, this, &ofApp::analogPinChanged);    
-}
 
 //--------------------------------------------------------------
 void ofApp::updateArduino(){
-	arduino.update();
+	//arduino.update();
 }
 
 //--------------------------------------------------------------
@@ -621,11 +632,11 @@ void ofApp::updateArduino(){
 //--------------------------------------------------------------
 void ofApp::digitalPinChanged(const int & pinNum) {
 
-    if (pinNum == 2) joystick_pressed = !arduino.getDigital(pinNum);
-    if (pinNum == 8) zoom_in_pressed = arduino.getDigital(pinNum);
-    if (pinNum == 9) zoom_out_pressed = arduino.getDigital(pinNum);
+    // if (pinNum == 2) joystick_pressed = !arduino.getDigital(pinNum);
+    // if (pinNum == 8) zoom_in_pressed = arduino.getDigital(pinNum);
+    // if (pinNum == 9) zoom_out_pressed = arduino.getDigital(pinNum);
 
-    arduino_digital_events_counter++;
+    // arduino_digital_events_counter++;
 }
 
 //--------------------------------------------------------------
@@ -633,7 +644,8 @@ void ofApp::digitalPinChanged(const int & pinNum) {
 // it is used here to get the joystick movement on x and y axis
 //--------------------------------------------------------------
 void ofApp::analogPinChanged(const int & pinNum) {
-    
+
+    /*    
     // float joystick_speed_divider = 6.5f;
     float joystick_speed_mult = 0.3538f;
     switch(pinNum){
@@ -655,6 +667,7 @@ void ofApp::analogPinChanged(const int & pinNum) {
         }
     }
     analog_status = "joystick x: " + ofToString(joystick.x) + ", y: " + ofToString(joystick.y);
+    */
 }
 
 //--------------------------------------------------------------
